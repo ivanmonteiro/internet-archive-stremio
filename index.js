@@ -7,7 +7,7 @@ process.env.STREMIO_LOGGING = true;
 // Define manifest object
 var manifest = { 
     // See https://github.com/Stremio/stremio-addons/blob/master/docs/api/manifest.md for full explanation
-    id: "org.stremio.internetarchivevideos",
+    id: "org.stremio.internetarchive",
     version: "1.0.0",
 
     name: "InternetArchive",
@@ -22,9 +22,9 @@ var manifest = {
     filter: { "query.iav_id": { "$exists": true }, "query.type": { "$in": ["movie"] } },
 
     // Adding a sort would add a tab in Discover and a lane in the Board for this add-on
-    sorts: [ {prop: "popularities.internetarchivevideos", name: "InternetArchive", types: ["movie"]}],
+    sorts: [ {prop: "popularities.internetarchive", name: "InternetArchive", types: ["movie"]}],
     
-    //endpoint: "URL_TO_ENDPOIT",//TODO
+    endpoint: "https://internetarchivestremio.herokuapp.com/",
     isFree : true,
     contactEmail: "ivanmonteiroc@gmail.com",
 };
@@ -55,7 +55,7 @@ function toMetaFindResult(row) {
         genre: ['Entertainment'],
         isFree: 1,                                                    // some aren't
         popularity: row.downloads,                                             // the larger, the more popular this item is
-        popularities: { internetarchivevideos: row.downloads },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
+        popularities: { internetarchive: row.downloads },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
         type: 'movie'                                                 // can also be "tv", "series", "channel"
     }
 }
@@ -193,7 +193,7 @@ var addon = new Stremio.Server({
                 genre: ['Entertainment'],
                 isFree: 1,                                                    // some aren't
                 popularity: 3831,                                             // the larger, the more popular this item is
-                popularities: { internetarchivevideos: 3831 },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
+                popularities: { internetarchive: 3831 },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
                 type: 'movie'                                                 // can also be "tv", "series", "channel"
             };
 
