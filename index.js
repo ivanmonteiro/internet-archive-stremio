@@ -11,7 +11,8 @@ var manifest = {
     version: "1.0.0",
 
     name: "InternetArchive",
-    description: "Stremio addon for Internet Archive Videos found at http://archive.org",
+    description: "Stremio addon for Internet Archive Videos found at https://archive.org",
+    webDescription: "<p>Stremio addon for Internet Archive Videos found at <a href='https://archive.org'>archive.org</a></p>",
     icon: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
     //background: "", //Not needed right now
 
@@ -24,7 +25,7 @@ var manifest = {
     // Adding a sort would add a tab in Discover and a lane in the Board for this add-on
     sorts: [ {prop: "popularities.internetarchive", name: "InternetArchive", types: ["movie"]}],
     
-    endpoint: "https://internetarchivestremio.herokuapp.com/",
+    endpoint: "https://internetarchivestremio.herokuapp.com/stremioget/stremio/v1",
     isFree : true,
     contactEmail: "ivanmonteiroc@gmail.com",
 };
