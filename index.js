@@ -8,13 +8,14 @@ process.env.STREMIO_LOGGING = true;
 var manifest = { 
     // See https://github.com/Stremio/stremio-addons/blob/master/docs/api/manifest.md for full explanation
     id: "org.stremio.internetarchive",
-    version: "1.0.0",
+    version: "1.0.1",
 
     name: "InternetArchive",
     description: "Stremio addon for Internet Archive Videos found at https://archive.org",
-    webDescription: "<p>Stremio addon for Internet Archive Videos found at <a href='https://archive.org'>archive.org</a></p>",
+    //webDescription: "<p>Stremio addon for Internet Archive Videos found at <a href='https://archive.org'>archive.org</a></p>",
     icon: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
-    //background: "", //Not needed right now
+    logo: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
+    background: "https://ivancantalice.files.wordpress.com/2018/05/camera-wallpaper.jpeg", 
 
     // Properties that determine when Stremio picks this add-on
     types: ["movie"], // your add-on will be preferred for those content types
