@@ -7,8 +7,8 @@ process.env.STREMIO_LOGGING = true;
 // Define manifest object
 var manifest = { 
     // See https://github.com/Stremio/stremio-addons/blob/master/docs/api/manifest.md for full explanation
-    id: "org.stremio.internetarchive",
-    version: "1.0.2",
+    id: "org.stremio.internetarchive",//TODO: change back
+    version: "1.0.5",
 
     name: "InternetArchive",
     description: "Stremio addon for Internet Archive videos at https://archive.org",
@@ -26,31 +26,22 @@ var manifest = {
     // Adding a sort would add a tab in Discover and a lane in the Board for this add-on
     sorts: [ {prop: "popularities.internetarchive", name: "InternetArchive", types: ["movie"]}],
     
-    endpoint: "https://internetarchivestremio.herokuapp.com/stremioget/stremio/v1",
+    //endpoint: "http://localhost:7000/stremioget/stremio/v1",
+    endpoint: "https://internetarchivestremio.herokuapp.com/stremioget/stremio/v1",    
     isFree : true,
     contactEmail: "ivanmonteiroc@gmail.com",
+    email: "ivanmonteiroc@gmail.com"
 };
 
 function loadPoster(identifier) {
-    //return "https://archive.org/services/get-item-image.php?identifier=" + identifier;
     return "https://archive.org/services/img/" + identifier;
-}
-
-function getPoster(identifier, results) {
-    var posters = results.files.filter(function(f) { return f.format ==  "Thumbnail" && f.name.endsWith(".jpg") && f.size < 100 });
-    if (posters.size > 0) {
-        return "https://archive.org/download/" + identifier + "/" + posters[0].name;
-    }
-    else {
-        return null;
-    }
 }
 
 function toMetaFindResult(row) {
     return {
         id: 'iav_id:' + row.identifier, // unique ID for the media, will be returned as "basic_id" in the request object later
         name: row.title, // title of media
-        poster: loadPoster(row.identifier), // image link
+        poster: loadPoster(identifier), // image link
         //posterShape: 'regular', // can also be 'landscape' or 'square'
         //banner: 'http://thetvdb.com/banners/graphical/78804-g44.jpg', // image link
         genre: ['Entertainment'],
@@ -62,14 +53,17 @@ function toMetaFindResult(row) {
 }
 
 function getItemMetadata(identifier, callback) {
-    ia.metadata(identifier, function(err, results){
-        if (err) console.error(err);
+    ia.metadata(identifier, function(err, results) {
         callback(err, results);
     });
 }
 
 function findStream(identifier, callback) {
-    var results = getItemMetadata(identifier, function(err, results) {
+    getItemMetadata(identifier, function(err, results) {
+        if (err) { 
+            console.error(err);
+            return callback(err);
+        }
         var streams = [];
 
         var mpeg4Streams = results.files.filter(function(f) { return f.name.endsWith(".mpeg4") });
@@ -94,7 +88,7 @@ function findStream(identifier, callback) {
                 isFree: 1,
                 iav_id: identifier
             });
-        }            
+        }
         console.log(JSON.stringify(streams, null, 2));        
         callback(null, streams);
     });
@@ -105,12 +99,12 @@ function findStream(identifier, callback) {
 
 var addon = new Stremio.Server({
     "stream.find": function(args, callback) {
-        console.log("received request from stream.find", args)
+        console.log("received request from stream.find", args);
         // callback expects array of stream objects
         findStream(args.query.iav_id, callback);
     },
     "meta.find": function(args, callback) {
-        console.log("received request from meta.find", args)
+        console.log("received request from meta.find", args);
         // callback expects array of meta object (primary meta feed)
         // it passes "limit" and "skip" for pagination
         /*
@@ -129,15 +123,19 @@ var addon = new Stremio.Server({
             skip: 0                              // offset, as pages change it will progress to "70", "140", ...
         }*/
         var params = {
-            q: 'mediatype:movies',
+            q: 'collection:moviesandfilms AND mediatype:movies',
             rows: args.limit,//limit
             page: (args.skip/args.limit) + 1,//formula: (args.skip/args.limit) + 1
-            fl: ['identifier,title,collection,downloads,description,date'],//fields returned
+            //fl: ['identifier,title,collection,downloads,description,date'],//fields returned
+            fl: ['identifier,title,downloads'],//fields returned
             "sort[]": "downloads desc"
         };
     
         ia.advancedSearch(params, function(err, results) {
-            if (err) console.error(err);
+            if (err) { 
+                console.error(err);
+                return callback(err);
+            }
             //console.log(JSON.stringify(results.response, null, 2));
             var response = results.response.docs.map(toMetaFindResult);
             //console.log(JSON.stringify(response, null, 2));
@@ -145,16 +143,19 @@ var addon = new Stremio.Server({
         });
     },
     "meta.get": function(args, callback) {
-        console.log("received request from meta.get", args)
+        console.log("received request from meta.get", args);
         // callback expects one meta element
 
-        var results = getItemMetadata(args.query.iav_id, function(err, results) {
-
+        getItemMetadata(args.query.iav_id, function(err, results) {
+            if (err) {
+                console.error(err);
+                return callback(err);
+            }
             //console.log(JSON.stringify(results, null, 2));
             var response = {
-                id: 'iav_id:' + results.metadata.identifier,                                       // unique ID for the media, will be returned as "basic_id" in the request object later
+                id: 'iav_id:' + args.query.iav_id,                                       // unique ID for the media, will be returned as "basic_id" in the request object later
                 name: results.metadata.title,                                          // title of media
-                poster: getPoster(args.query.iav_id, results),    // image link               
+                poster: loadPoster(args.query.iav_id),// getPoster(args.query.iav_id, results),    // image link               
                 genre: ['Entertainment'],
                 isFree: 1,                                                    // some aren't
                 popularity: 3831,                                             // the larger, the more popular this item is
@@ -163,8 +164,8 @@ var addon = new Stremio.Server({
             };
             
             //console.log(JSON.stringify(response, null, 2));
-            callback(err, response);
-        });
+            callback(null, response);
+        });        
     },
     "meta.search": function(args, callback) {
         console.log("received request from meta.search", args)
@@ -177,14 +178,17 @@ var addon = new Stremio.Server({
             limit: 10                 // limit length of the response array to "10"
         }*/        
         var params = {
-            q: args.query + ' AND mediatype:movies',
-            rows: args.limit,//limit
-            page: "1",//formula: (offset/limit) + 1
-            fl: ['identifier,title,collection,downloads,description,date']//fields returned
+            q: 'mediatype:movies AND collection:moviesandfilms ' + args.query,
+            rows: args.limit,
+            page: "1",
+            fl: ['identifier,title,,downloads']//fields returned
         };
     
         ia.advancedSearch(params, function(err, results) {
-            if (err) console.error(err);
+            if (err) {
+                console.error(err);
+                return callback(err);
+            }
             //console.log(JSON.stringify(results.response, null, 2));
             var response = results.response.docs.map(toMetaFindResult);
             //console.log(JSON.stringify(response, null, 2));
@@ -193,14 +197,15 @@ var addon = new Stremio.Server({
     },
 }, manifest);
 
-if (require.main===module) var server = require("http").createServer(function (req, res) {
-    addon.middleware(req, res, function() { res.end() }); // wire the middleware - also compatible with connect / express
-}).on("listening", function()
-{
-    var port = server.address().port;
-    console.log("Sample Stremio Addon listening on "+port);
-    console.log("You can test this add-on via the web app at: http://app.strem.io/#/discover/movie?addon="+encodeURIComponent('http://localhost:'+port))
-}).listen(process.env.PORT || 7000);
-
+if (require.main===module) {
+    var server = require("http").createServer(function (req, res) {
+        addon.middleware(req, res, function() { res.end() }); // wire the middleware - also compatible with connect / express
+    }).on("listening", function()
+    {
+        var port = server.address().port;
+        console.log("Stremio Addon listening on "+port);
+        console.log("You can test this add-on via the web app at: http://app.strem.io/#/discover/movie?addon="+encodeURIComponent('http://localhost:'+port))
+    }).listen(process.env.PORT || 7000);
+}
 // Export for local usage
 module.exports = addon;
