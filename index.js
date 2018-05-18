@@ -8,9 +8,9 @@ process.env.STREMIO_LOGGING = true;
 var manifest = { 
     // See https://github.com/Stremio/stremio-addons/blob/master/docs/api/manifest.md for full explanation
     id: "org.stremio.internetarchive",//TODO: change back
-    version: "1.0.6",
-
+    version: "1.0.7",
     name: "InternetArchive",
+
     description: "Stremio addon for Internet Archive videos at https://archive.org",
     webDescription: "<p>Stremio addon for Internet Archive videos at <a href='https://archive.org'>archive.org</a></p>",
     icon: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
@@ -111,21 +111,6 @@ var addon = new Stremio.Server({
         console.log("received request from meta.find", args);
         // callback expects array of meta object (primary meta feed)
         // it passes "limit" and "skip" for pagination
-        /*
-        args:
-        {
-            query: {
-              type: 'movie',                     // can also be "tv", "series", "channel"
-              'popularities.basic': { '$gt': 0 }
-            },
-            popular: true,
-            complete: true,
-            sort: {
-              'popularities.basic': -1 // -1 for descending, 1 for ascending
-            },
-            limit: 70,                           // limit length of the response array to "70"
-            skip: 0                              // offset, as pages change it will progress to "70", "140", ...
-        }*/
         var params = {
             q: 'collection:moviesandfilms AND mediatype:movies',
             rows: args.limit,//limit
@@ -158,32 +143,27 @@ var addon = new Stremio.Server({
                 console.error(err);
                 return callback(err);
             }
+
             //console.log(JSON.stringify(results, null, 2));
             var response = {
-                id: 'iav_id:' + args.query.iav_id,                                       // unique ID for the media, will be returned as "basic_id" in the request object later
-                name: results.metadata.title,                                          // title of media
+                id: 'iav_id:' + args.query.iav_id, // unique ID for the media, will be returned as "basic_id" in the request object later
+                name: results.metadata.title, // title of media
                 poster: loadPoster(args.query.iav_id),// getPoster(args.query.iav_id, results),    // image link               
                 genre: ['Entertainment'],
-                isFree: 1,                                                    // some aren't
-                popularity: 3831,                                             // the larger, the more popular this item is
-                popularities: { internetarchive: 3831 },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
-                type: 'movie'                                                 // can also be "tv", "series", "channel"
-            };
-            
+                isFree: 1, // some aren't
+                popularity: 3831, // the larger, the more popular this item is
+                popularities: { internetarchive: 3831 }, // same as 'popularity'; use this if you want to provide different sort orders in your manifest
+                type: 'movie' // can also be "tv", "series", "channel"
+            };            
             //console.log(JSON.stringify(response, null, 2));
+
             callback(null, response);
         });        
     },
     "meta.search": function(args, callback) {
         console.log("received request from meta.search", args)
         // callback expects array of search results with meta objects
-        // does not support pagination      
-        /*
-        args:
-        {
-            query: 'baseball season', // search query
-            limit: 10                 // limit length of the response array to "10"
-        }*/        
+        // does not support pagination
         var params = {
             q: 'mediatype:movies AND collection:moviesandfilms ' + args.query,
             rows: args.limit,
