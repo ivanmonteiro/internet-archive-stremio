@@ -26,7 +26,7 @@ var manifest = {
     // Adding a sort would add a tab in Discover and a lane in the Board for this add-on
     sorts: [ {prop: "popularities.internetarchive", name: "InternetArchive", types: ["movie"]}],
     
-    //endpoint: "https://internetarchivestremio.herokuapp.com/stremioget/stremio/v1",
+    endpoint: "https://internetarchivestremio.herokuapp.com/stremioget/stremio/v1",
     isFree : true,
     contactEmail: "ivanmonteiroc@gmail.com",
 };
@@ -149,6 +149,7 @@ var addon = new Stremio.Server({
         // callback expects one meta element
 
         var results = getItemMetadata(args.query.iav_id, function(err, results) {
+
             //console.log(JSON.stringify(results, null, 2));
             var response = {
                 id: 'iav_id:' + results.metadata.identifier,                                       // unique ID for the media, will be returned as "basic_id" in the request object later
