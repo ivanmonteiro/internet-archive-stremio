@@ -26,13 +26,14 @@ var manifest = {
     // Adding a sort would add a tab in Discover and a lane in the Board for this add-on
     sorts: [ {prop: "popularities.internetarchive", name: "InternetArchive", types: ["movie"]}],
     
-    endpoint: "https://internetarchivestremio.herokuapp.com/stremioget/stremio/v1",
+    //endpoint: "https://internetarchivestremio.herokuapp.com/stremioget/stremio/v1",
     isFree : true,
     contactEmail: "ivanmonteiroc@gmail.com",
 };
 
 function loadPoster(identifier) {
-    return "https://archive.org/services/get-item-image.php?identifier=" + identifier;
+    //return "https://archive.org/services/get-item-image.php?identifier=" + identifier;
+    return "https://archive.org/services/img/" + identifier;
 }
 
 function getPoster(identifier, results) {
@@ -146,16 +147,9 @@ var addon = new Stremio.Server({
     "meta.get": function(args, callback) {
         console.log("received request from meta.get", args)
         // callback expects one meta element
-        /*
-        args:
-        {
-            query: {
-              basic_id: 'opa2135' // based on what you set as "id" in the previous responses
-            }
-        }*/
+
         var results = getItemMetadata(args.query.iav_id, function(err, results) {
             //console.log(JSON.stringify(results, null, 2));
-
             var response = {
                 id: 'iav_id:' + results.metadata.identifier,                                       // unique ID for the media, will be returned as "basic_id" in the request object later
                 name: results.metadata.title,                                          // title of media
@@ -166,7 +160,7 @@ var addon = new Stremio.Server({
                 popularities: { internetarchive: 3831 },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
                 type: 'movie'                                                 // can also be "tv", "series", "channel"
             };
-
+            
             //console.log(JSON.stringify(response, null, 2));
             callback(err, response);
         });
