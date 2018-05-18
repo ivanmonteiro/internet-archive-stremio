@@ -12,7 +12,7 @@ var manifest = {
 
     name: "InternetArchive",
     description: "Stremio addon for Internet Archive Videos found at https://archive.org",
-    //webDescription: "<p>Stremio addon for Internet Archive Videos found at <a href='https://archive.org'>archive.org</a></p>",
+    webDescription: "<p>Stremio addon for Internet Archive Videos found at <a href='https://archive.org'>archive.org</a></p>",
     icon: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
     logo: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
     background: "https://ivancantalice.files.wordpress.com/2018/05/camera-wallpaper.jpeg", 
