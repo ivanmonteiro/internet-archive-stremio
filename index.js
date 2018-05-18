@@ -8,7 +8,7 @@ process.env.STREMIO_LOGGING = true;
 var manifest = { 
     // See https://github.com/Stremio/stremio-addons/blob/master/docs/api/manifest.md for full explanation
     id: "org.stremio.internetarchive",//TODO: change back
-    version: "1.0.5",
+    version: "1.0.6",
 
     name: "InternetArchive",
     description: "Stremio addon for Internet Archive videos at https://archive.org",
@@ -53,9 +53,13 @@ function toMetaFindResult(row) {
 }
 
 function getItemMetadata(identifier, callback) {
-    ia.metadata(identifier, function(err, results) {
-        callback(err, results);
-    });
+    try {
+        ia.metadata(identifier, function(err, results) {
+            callback(err, results);
+        });
+    } catch (e) {
+        console.log(`Caught error: ${e.message}`);
+    }    
 }
 
 function findStream(identifier, callback) {
@@ -130,17 +134,20 @@ var addon = new Stremio.Server({
             fl: ['identifier,title,downloads'],//fields returned
             "sort[]": "downloads desc"
         };
-    
-        ia.advancedSearch(params, function(err, results) {
-            if (err) { 
-                console.error(err);
-                return callback(err);
-            }
-            //console.log(JSON.stringify(results.response, null, 2));
-            var response = results.response.docs.map(toMetaFindResult);
-            //console.log(JSON.stringify(response, null, 2));
-            callback(null, response);
-        });
+        try {
+            ia.advancedSearch(params, function(err, results) {
+                if (err) { 
+                    console.error(err);
+                    return callback(err);
+                }
+                //console.log(JSON.stringify(results.response, null, 2));
+                var response = results.response.docs.map(toMetaFindResult);
+                //console.log(JSON.stringify(response, null, 2));
+                callback(null, response);
+            });
+        } catch (e) {
+            console.log(`Caught error: ${e.message}`);            
+        }
     },
     "meta.get": function(args, callback) {
         console.log("received request from meta.get", args);
@@ -183,17 +190,20 @@ var addon = new Stremio.Server({
             page: "1",
             fl: ['identifier,title,,downloads']//fields returned
         };
-    
-        ia.advancedSearch(params, function(err, results) {
-            if (err) {
-                console.error(err);
-                return callback(err);
-            }
-            //console.log(JSON.stringify(results.response, null, 2));
-            var response = results.response.docs.map(toMetaFindResult);
-            //console.log(JSON.stringify(response, null, 2));
-            callback(null, response);
-        });
+        try {
+            ia.advancedSearch(params, function(err, results) {
+                if (err) {
+                    console.error(err);
+                    return callback(err);
+                }
+                //console.log(JSON.stringify(results.response, null, 2));
+                var response = results.response.docs.map(toMetaFindResult);
+                //console.log(JSON.stringify(response, null, 2));
+                callback(null, response);
+            });
+        } catch (e) {
+            console.log(`Caught error: ${e.message}`);
+        }
     },
 }, manifest);
 
