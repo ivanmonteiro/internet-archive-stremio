@@ -11,8 +11,8 @@ var manifest = {
     version: "1.0.1",
 
     name: "InternetArchive",
-    description: "Stremio addon for Internet Archive Videos found at https://archive.org",
-    webDescription: "<p>Stremio addon for Internet Archive Videos found at <a href='https://archive.org'>archive.org</a></p>",
+    description: "Stremio addon for Internet Archive videos at https://archive.org",
+    webDescription: "<p>Stremio addon for Internet Archive videos at <a href='https://archive.org'>archive.org</a></p>",
     icon: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
     logo: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
     background: "https://ivancantalice.files.wordpress.com/2018/05/camera-wallpaper.jpeg", 
@@ -35,7 +35,6 @@ function loadPoster(identifier) {
     return "https://archive.org/services/get-item-image.php?identifier=" + identifier;
 }
 
-//gets poster from files array
 function getPoster(identifier, results) {
     var posters = results.files.filter(function(f) { return f.format ==  "Thumbnail" && f.name.endsWith(".jpg") && f.size < 100 });
     if (posters.size > 0) {
@@ -46,22 +45,20 @@ function getPoster(identifier, results) {
     }
 }
 
-
 function toMetaFindResult(row) {
     return {
         id: 'iav_id:' + row.identifier, // unique ID for the media, will be returned as "basic_id" in the request object later
-        name: row.title,     // title of media
-        poster: loadPoster(row.identifier),    // image link
-        //posterShape: 'regular',                                       // can also be 'landscape' or 'square'
+        name: row.title, // title of media
+        poster: loadPoster(row.identifier), // image link
+        //posterShape: 'regular', // can also be 'landscape' or 'square'
         //banner: 'http://thetvdb.com/banners/graphical/78804-g44.jpg', // image link
         genre: ['Entertainment'],
-        isFree: 1,                                                    // some aren't
-        popularity: row.downloads,                                             // the larger, the more popular this item is
-        popularities: { internetarchive: row.downloads },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
-        type: 'movie'                                                 // can also be "tv", "series", "channel"
+        isFree: 1, // some aren't
+        popularity: row.downloads, // the larger, the more popular this item is
+        popularities: { internetarchive: row.downloads }, // same as 'popularity'; use this if you want to provide different sort orders in your manifest
+        type: 'movie' // can also be "tv", "series", "channel"
     }
 }
-
 
 function getItemMetadata(identifier, callback) {
     ia.metadata(identifier, function(err, results){
@@ -70,11 +67,8 @@ function getItemMetadata(identifier, callback) {
     });
 }
 
-
 function findStream(identifier, callback) {
     var results = getItemMetadata(identifier, function(err, results) {
-        //console.log(JSON.stringify(results, null, 2));
-
         var streams = [];
 
         var mpeg4Streams = results.files.filter(function(f) { return f.name.endsWith(".mpeg4") });
@@ -85,7 +79,7 @@ function findStream(identifier, callback) {
                 title: mpeg4Streams[0].name,
                 tag: ['mp4'],
                 isFree: 1,
-                iav_id: identifier//args.query.twitch_id
+                iav_id: identifier
             });
         }
 
@@ -97,20 +91,17 @@ function findStream(identifier, callback) {
                 title: mp4Streams[0].name,
                 tag: ['mp4'],
                 isFree: 1,
-                iav_id: identifier//args.query.twitch_id
+                iav_id: identifier
             });
-        }
-            
-        console.log(JSON.stringify(streams, null, 2));
-        
+        }            
+        console.log(JSON.stringify(streams, null, 2));        
         callback(null, streams);
     });
 }
 
-
 var dataset = {};
 
-var methods = { };
+var methods = {};
 
 var addon = new Stremio.Server({
     "stream.find": function(args, callback) {
@@ -151,27 +142,7 @@ var addon = new Stremio.Server({
             var response = results.response.docs.map(toMetaFindResult);
             //console.log(JSON.stringify(response, null, 2));
             callback(null, response);
-        });  
-        /*
-        response:
-        [
-            {
-                id: 'basic_id:opa2135',                                       // unique ID for the media, will be returned as "basic_id" in the request object later
-                name: 'basic title',                                          // title of media
-                poster: 'http://thetvdb.com/banners/posters/78804-52.jpg',    // image link
-                posterShape: 'regular',                                       // can also be 'landscape' or 'square'
-                banner: 'http://thetvdb.com/banners/graphical/78804-g44.jpg', // image link
-                genre: ['Entertainment'],
-                isFree: 1,                                                    // some aren't
-                popularity: 3831,                                             // the larger, the more popular this item is
-                popularities: { basic: 3831 },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
-                type: 'movie'                                                 // can also be "tv", "series", "channel"
-            },
-            ...
-            
-        ]
-        */
-
+        });
     },
     "meta.get": function(args, callback) {
         console.log("received request from meta.get", args)
@@ -189,9 +160,7 @@ var addon = new Stremio.Server({
             var response = {
                 id: 'iav_id:' + results.metadata.identifier,                                       // unique ID for the media, will be returned as "basic_id" in the request object later
                 name: results.metadata.title,                                          // title of media
-                poster: getPoster(args.query.iav_id, results),    // image link
-                //posterShape: 'regular',                                       // can also be 'landscape' or 'square'
-                //banner: 'http://thetvdb.com/banners/graphical/78804-g44.jpg', // image link
+                poster: getPoster(args.query.iav_id, results),    // image link               
                 genre: ['Entertainment'],
                 isFree: 1,                                                    // some aren't
                 popularity: 3831,                                             // the larger, the more popular this item is
@@ -202,21 +171,6 @@ var addon = new Stremio.Server({
             //console.log(JSON.stringify(response, null, 2));
             callback(err, response);
         });
-        /*
-        response:
-        {
-            id: 'basic_id:opa2135',                                       // unique ID for the media, will be returned as "basic_id" in the request object later
-            name: 'basic title',                                          // title of media
-            poster: 'http://thetvdb.com/banners/posters/78804-52.jpg',    // image link
-            posterShape: 'regular',                                       // can also be 'landscape' or 'square'
-            banner: 'http://thetvdb.com/banners/graphical/78804-g44.jpg', // image link
-            genre: ['Entertainment'],
-            isFree: 1,                                                    // some aren't
-            popularity: 3831,                                             // the larger, the more popular this item is
-            popularities: { basic: 3831 },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
-            type: 'movie'                                                 // can also be "tv", "series", "channel"
-          }
-          */        
     },
     "meta.search": function(args, callback) {
         console.log("received request from meta.search", args)
@@ -241,28 +195,7 @@ var addon = new Stremio.Server({
             var response = results.response.docs.map(toMetaFindResult);
             //console.log(JSON.stringify(response, null, 2));
             callback(null, response);
-        });  
-        /*
-        response:
-        {
-            query: 'baseball season', // return the query from the response
-            results: [ // Array of Metadata objects
-              {
-                id: 'basic_id:opa2135',                                       // unique ID for the media, will be returned as "basic_id" in the request object later
-                name: 'basic title',                                          // title of media
-                poster: 'http://thetvdb.com/banners/posters/78804-52.jpg',    // image link
-                posterShape: 'regular',                                       // can also be 'landscape' or 'square'
-                banner: 'http://thetvdb.com/banners/graphical/78804-g44.jpg', // image link
-                genre: ['Entertainment'],
-                isFree: 1,                                                    // some aren't
-                popularity: 3831,                                             // the larger, the more popular this item is
-                popularities: { basic: 3831 },                                // same as 'popularity'; use this if you want to provide different sort orders in your manifest
-                type: 'movie'                                                 // can also be "tv", "series", "channel"
-              },
-              ...
-            ],
-          } 
-          */            
+        });
     },
 }, manifest);
 
