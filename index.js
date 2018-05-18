@@ -41,7 +41,7 @@ function toMetaFindResult(row) {
     return {
         id: 'iav_id:' + row.identifier, // unique ID for the media, will be returned as "basic_id" in the request object later
         name: row.title, // title of media
-        poster: loadPoster(identifier), // image link
+        poster: loadPoster(row.identifier), // image link
         //posterShape: 'regular', // can also be 'landscape' or 'square'
         //banner: 'http://thetvdb.com/banners/graphical/78804-g44.jpg', // image link
         genre: ['Entertainment'],
