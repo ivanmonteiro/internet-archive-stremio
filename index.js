@@ -8,7 +8,7 @@ process.env.STREMIO_LOGGING = true;
 var manifest = { 
     // See https://github.com/Stremio/stremio-addons/blob/master/docs/api/manifest.md for full explanation
     id: "org.stremio.internetarchive",//TODO: change back
-    version: "1.0.7",
+    version: "1.0.8",
     name: "InternetArchive",
 
     description: "Stremio addon for Internet Archive videos at https://archive.org",
