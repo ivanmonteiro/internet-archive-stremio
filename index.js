@@ -99,9 +99,8 @@ function findStream(identifier, callback) {
     });
 }
 
-var dataset = {};
-
-var methods = {};
+//var dataset = {};
+//var methods = {};
 
 var addon = new Stremio.Server({
     "stream.find": function(args, callback) {
