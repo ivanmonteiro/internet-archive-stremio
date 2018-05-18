@@ -53,61 +53,62 @@ function toMetaFindResult(row) {
 }
 
 function getItemMetadata(identifier, callback) {
-    try {
-        ia.metadata(identifier, function(err, results) {
-            callback(err, results);
-        });
-    } catch (e) {
-        console.log(`Caught error: ${e.message}`);
-    }    
-}
-
-function findStream(identifier, callback) {
-    getItemMetadata(identifier, function(err, results) {
-        if (err) { 
-            console.error(err);
-            return callback(err);
-        }
-        var streams = [];
-
-        var mpeg4Streams = results.files.filter(function(f) { return f.name.endsWith(".mpeg4") });
-        if (mpeg4Streams != null && mpeg4Streams.length > 0) {
-            streams.push({
-                availability: 1,
-                url: "https://archive.org/download/" + identifier + "/" + mpeg4Streams[0].name,
-                title: mpeg4Streams[0].name,
-                tag: ['mp4'],
-                isFree: 1,
-                iav_id: identifier
-            });
-        }
-
-        var mp4Streams = results.files.filter(function(f) { return f.name.endsWith(".mp4") });
-        if (mp4Streams != null && mp4Streams.length > 0) {
-            streams.push({
-                availability: 1,
-                url: "https://archive.org/download/" + identifier + "/" + mp4Streams[0].name,
-                title: mp4Streams[0].name,
-                tag: ['mp4'],
-                isFree: 1,
-                iav_id: identifier
-            });
-        }
-        console.log(JSON.stringify(streams, null, 2));        
-        callback(null, streams);
+    ia.metadata(identifier, function(err, results) {
+        callback(err, results);
     });
 }
 
-//var dataset = {};
-//var methods = {};
-
-var addon = new Stremio.Server({
-    "stream.find": function(args, callback) {
+function streamFind(args, callback) {
+    try {
         console.log("received request from stream.find", args);
         // callback expects array of stream objects
-        findStream(args.query.iav_id, callback);
-    },
-    "meta.find": function(args, callback) {
+        var identifier = args.query.iav_id;
+
+        if (identifier === undefined) {
+            return callback(new Error("Internal error - Id not supported"));
+        } else {            
+            getItemMetadata(identifier, function(err, results) {
+                if (err) { 
+                    console.error(err);
+                    return callback(err);
+                }
+                var streams = [];
+
+                var mpeg4Streams = results.files.filter(function(f) { return f.name.endsWith(".mpeg4") });
+                if (mpeg4Streams != null && mpeg4Streams.length > 0) {
+                    streams.push({
+                        availability: 1,
+                        url: "https://archive.org/download/" + identifier + "/" + mpeg4Streams[0].name,
+                        title: mpeg4Streams[0].name,
+                        tag: ['mp4'],
+                        isFree: 1,
+                        iav_id: identifier
+                    });
+                }
+
+                var mp4Streams = results.files.filter(function(f) { return f.name.endsWith(".mp4") });
+                if (mp4Streams != null && mp4Streams.length > 0) {
+                    streams.push({
+                        availability: 1,
+                        url: "https://archive.org/download/" + identifier + "/" + mp4Streams[0].name,
+                        title: mp4Streams[0].name,
+                        tag: ['mp4'],
+                        isFree: 1,
+                        iav_id: identifier
+                    });
+                }
+                console.log(JSON.stringify(streams, null, 2));        
+                callback(null, streams);
+            });
+        }
+    } catch (e) {
+        console.log(`Caught error: ${e.message}`);
+        return callback(new Error(`Caught error: ${e.message}`));
+    }
+}
+
+function metaFind(args, callback) {
+    try {
         console.log("received request from meta.find", args);
         // callback expects array of meta object (primary meta feed)
         // it passes "limit" and "skip" for pagination
@@ -119,22 +120,25 @@ var addon = new Stremio.Server({
             fl: ['identifier,title,downloads'],//fields returned
             "sort[]": "downloads desc"
         };
-        try {
-            ia.advancedSearch(params, function(err, results) {
-                if (err) { 
-                    console.error(err);
-                    return callback(err);
-                }
-                //console.log(JSON.stringify(results.response, null, 2));
-                var response = results.response.docs.map(toMetaFindResult);
-                //console.log(JSON.stringify(response, null, 2));
-                callback(null, response);
-            });
-        } catch (e) {
-            console.log(`Caught error: ${e.message}`);            
-        }
-    },
-    "meta.get": function(args, callback) {
+    
+        ia.advancedSearch(params, function(err, results) {
+            if (err) { 
+                console.error(err);
+                return callback(err);
+            }
+            //console.log(JSON.stringify(results.response, null, 2));
+            var response = results.response.docs.map(toMetaFindResult);
+            //console.log(JSON.stringify(response, null, 2));
+            callback(null, response);
+        });
+    } catch (e) {
+        console.log(`Caught error: ${e.message}`);     
+        return callback(new Error(`Caught error: ${e.message}`));     
+    }
+}
+
+function metaGet(args, callback) {
+    try {
         console.log("received request from meta.get", args);
         // callback expects one meta element
 
@@ -158,9 +162,15 @@ var addon = new Stremio.Server({
             //console.log(JSON.stringify(response, null, 2));
 
             callback(null, response);
-        });        
-    },
-    "meta.search": function(args, callback) {
+        });
+    } catch (e) {
+        console.log(`Caught error: ${e.message}`);
+        return callback(new Error(`Caught error: ${e.message}`));
+    }      
+}
+
+function metaSearch(args, callback) {
+    try {
         console.log("received request from meta.search", args)
         // callback expects array of search results with meta objects
         // does not support pagination
@@ -170,21 +180,28 @@ var addon = new Stremio.Server({
             page: "1",
             fl: ['identifier,title,,downloads']//fields returned
         };
-        try {
-            ia.advancedSearch(params, function(err, results) {
-                if (err) {
-                    console.error(err);
-                    return callback(err);
-                }
-                //console.log(JSON.stringify(results.response, null, 2));
-                var response = results.response.docs.map(toMetaFindResult);
-                //console.log(JSON.stringify(response, null, 2));
-                callback(null, response);
-            });
-        } catch (e) {
-            console.log(`Caught error: ${e.message}`);
-        }
-    },
+    
+        ia.advancedSearch(params, function(err, results) {
+            if (err) {
+                console.error(err);
+                return callback(err);
+            }
+            //console.log(JSON.stringify(results.response, null, 2));
+            var response = results.response.docs.map(toMetaFindResult);
+            //console.log(JSON.stringify(response, null, 2));
+            callback(null, response);
+        });
+    } catch (e) {
+        console.log(`Caught error: ${e.message}`);
+        return callback(new Error(`Caught error: ${e.message}`));
+    }
+}
+
+var addon = new Stremio.Server({
+    "stream.find": streamFind,
+    "meta.find": metaFind,
+    "meta.get": metaGet,
+    "meta.search": metaSearch,
 }, manifest);
 
 if (require.main===module) {
