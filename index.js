@@ -52,11 +52,32 @@ function toMetaFindResult(row) {
     }
 }
 
-function getItemMetadata(identifier, callback) {
-    ia.metadata(identifier, function(err, results) {
-        callback(err, results);
+const iaAdvancedSearch = function (params) {
+    //Promise wrapper of inernet archive advancedsearch api
+    return new Promise(function(resolve, reject) {
+        ia.advancedSearch(params, function(err, results) {
+            if (err) {
+                console.log(err);
+                reject(new Error('Error loading from Internet Archive Advanced Search API'));
+            }
+            resolve(results);
+        });
+    });
+} 
+
+function iaGetItemMetadata(identifier) {
+    //Promise wrapper of inernet archive metadata api
+    return new Promise(function (resolve, reject) {
+        ia.metadata(identifier, function(err, results) {
+            if (err) {
+                console.log(err);
+                reject(new Error('Error loading from Internet Archive Metadata Api'));
+            }
+            resolve(results);
+        });
     });
 }
+
 
 function streamFind(args, callback) {
     try {
@@ -65,8 +86,49 @@ function streamFind(args, callback) {
         var identifier = args.query.iav_id;
 
         if (identifier === undefined) {
+            console.log("Id not supported");
             return callback(new Error("Internal error - Id not supported"));
-        } else {            
+        } else {
+            iaGetItemMetadata(identifier)
+                .then(function (results) {
+                    var streams = [];
+
+                    var mpeg4Streams = results.files.filter(function(f) { return f.name.endsWith(".mpeg4") });
+                    
+                    if (mpeg4Streams != null && mpeg4Streams.length > 0) {
+                        streams.push({
+                            availability: 1,
+                            url: "https://archive.org/download/" + identifier + "/" + mpeg4Streams[0].name,
+                            title: mpeg4Streams[0].name,
+                            tag: ['mp4'],
+                            isFree: 1,
+                            iav_id: identifier
+                        });
+                    }
+    
+                    var mp4Streams = results.files.filter(function(f) { return f.name.endsWith(".mp4") });
+                   
+                    if (mp4Streams != null && mp4Streams.length > 0) {
+                        streams.push({
+                            availability: 1,
+                            url: "https://archive.org/download/" + identifier + "/" + mp4Streams[0].name,
+                            title: mp4Streams[0].name,
+                            tag: ['mp4'],
+                            isFree: 1,
+                            iav_id: identifier
+                        });
+                    }
+
+                    console.log(JSON.stringify(streams, null, 2)); 
+                    callback(null, streams);
+                })
+                .catch(function (error) {
+                    if (error) {
+                        console.log(error);
+                        return callback(error);
+                    }
+                });
+            /*
             getItemMetadata(identifier, function(err, results) {
                 if (err) { 
                     console.error(err);
@@ -99,7 +161,7 @@ function streamFind(args, callback) {
                 }
                 console.log(JSON.stringify(streams, null, 2));        
                 callback(null, streams);
-            });
+            });*/
         }
     } catch (e) {
         console.log(`Caught error: ${e.message}`);
@@ -120,7 +182,17 @@ function metaFind(args, callback) {
             fl: ['identifier,title,downloads'],//fields returned
             "sort[]": "downloads desc"
         };
-    
+
+        iaAdvancedSearch(params)
+            .then(function (results) {
+                var response = results.response.docs.map(toMetaFindResult);
+                callback(null, response);
+            })
+            .catch(function (error) {
+                console.error(error);
+                callback(error);
+            });
+        /*
         ia.advancedSearch(params, function(err, results) {
             if (err) { 
                 console.error(err);
@@ -130,7 +202,7 @@ function metaFind(args, callback) {
             var response = results.response.docs.map(toMetaFindResult);
             //console.log(JSON.stringify(response, null, 2));
             callback(null, response);
-        });
+        });*/
     } catch (e) {
         console.log(`Caught error: ${e.message}`);     
         return callback(new Error(`Caught error: ${e.message}`));     
@@ -141,28 +213,35 @@ function metaGet(args, callback) {
     try {
         console.log("received request from meta.get", args);
         // callback expects one meta element
+        var identifier = args.query.iav_id;
 
-        getItemMetadata(args.query.iav_id, function(err, results) {
-            if (err) {
-                console.error(err);
-                return callback(err);
-            }
-
-            //console.log(JSON.stringify(results, null, 2));
-            var response = {
-                id: 'iav_id:' + args.query.iav_id, // unique ID for the media, will be returned as "basic_id" in the request object later
-                name: results.metadata.title, // title of media
-                poster: loadPoster(args.query.iav_id),// getPoster(args.query.iav_id, results),    // image link               
-                genre: ['Entertainment'],
-                isFree: 1, // some aren't
-                popularity: 3831, // the larger, the more popular this item is
-                popularities: { internetarchive: 3831 }, // same as 'popularity'; use this if you want to provide different sort orders in your manifest
-                type: 'movie' // can also be "tv", "series", "channel"
-            };            
-            //console.log(JSON.stringify(response, null, 2));
-
-            callback(null, response);
-        });
+        if (identifier === undefined) {
+            console.log("Id not supported");
+            return callback(new Error("Id not supported"));
+        } else {
+            iaGetItemMetadata(identifier)
+                .then(function (results) {
+                    //console.log(JSON.stringify(results, null, 2));
+                    var response = {
+                        id: 'iav_id:' + args.query.iav_id, // unique ID for the media, will be returned as "basic_id" in the request object later
+                        name: results.metadata.title, // title of media
+                        poster: loadPoster(args.query.iav_id),// getPoster(args.query.iav_id, results),    // image link               
+                        genre: ['Entertainment'],
+                        isFree: 1, // some aren't
+                        popularity: 3831, // the larger, the more popular this item is
+                        popularities: { internetarchive: 3831 }, // same as 'popularity'; use this if you want to provide different sort orders in your manifest
+                        type: 'movie' // can also be "tv", "series", "channel"
+                    };            
+                    //console.log(JSON.stringify(response, null, 2));
+                    callback(null, response);
+                })
+                .catch(function (error) {
+                    if (error) {
+                        console.log(error);
+                        return callback(error);
+                    }
+                });
+        }
     } catch (e) {
         console.log(`Caught error: ${e.message}`);
         return callback(new Error(`Caught error: ${e.message}`));
@@ -180,7 +259,19 @@ function metaSearch(args, callback) {
             page: "1",
             fl: ['identifier,title,,downloads']//fields returned
         };
-    
+
+        iaAdvancedSearch(params)
+            .then(function (results) {
+                //console.log(JSON.stringify(results.response, null, 2));
+                var response = results.response.docs.map(toMetaFindResult);
+                //console.log(JSON.stringify(response, null, 2));
+                callback(null, response);
+            })
+            .catch(function (error) {
+                console.log(error);
+                callback(error);
+            });
+        /*    
         ia.advancedSearch(params, function(err, results) {
             if (err) {
                 console.error(err);
@@ -190,7 +281,7 @@ function metaSearch(args, callback) {
             var response = results.response.docs.map(toMetaFindResult);
             //console.log(JSON.stringify(response, null, 2));
             callback(null, response);
-        });
+        });*/
     } catch (e) {
         console.log(`Caught error: ${e.message}`);
         return callback(new Error(`Caught error: ${e.message}`));
