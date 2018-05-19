@@ -1,7 +1,6 @@
 var Stremio = require("stremio-addons");
 var ia = require('internet-archive');
 var isUrl = require('is-url')
-
 // Enable server logging for development purposes
 process.env.STREMIO_LOGGING = true; 
 
@@ -9,7 +8,7 @@ process.env.STREMIO_LOGGING = true;
 var manifest = { 
     // See https://github.com/Stremio/stremio-addons/blob/master/docs/api/manifest.md for full explanation
     id: "org.stremio.internetarchive",//TODO: change back
-    version: "1.0.11",
+    version: "1.0.12",
     name: "InternetArchive",
 
     description: "Stremio addon for Internet Archive videos at https://archive.org",
@@ -33,7 +32,10 @@ var manifest = {
     email: "ivanmonteiroc@gmail.com"
 };
 
-function loadPoster(identifier) {
+var client = new Stremio.Client();// To provide meta for our movies, we'll just proxy the official cinemeta add-on
+client.add("http://cinemeta.strem.io/stremioget/stremio/v1");
+
+function getPosterUrl(identifier) {
     return "https://archive.org/services/img/" + identifier;
 }
 
@@ -41,7 +43,7 @@ function toMetaFindResult(row) {
     return {
         id: 'iav_id:' + row.identifier, // unique ID for the media, will be returned as "basic_id" in the request object later
         name: row.title, // title of media
-        poster: loadPoster(row.identifier), // image link
+        poster: getPosterUrl(row.identifier), // image link
         //posterShape: 'regular', // can also be 'landscape' or 'square'
         //banner: 'http://thetvdb.com/banners/graphical/78804-g44.jpg', // image link
         genre: ['Entertainment'],
@@ -58,10 +60,9 @@ const iaAdvancedSearch = function (params) {
         ia.advancedSearch(params, function(err, results) {
             if (err) {
                 console.log(err);
-                reject(new Error('Error loading from Internet Archive Advanced Search API'));
-            } else {
-                resolve(results);
+                return reject(new Error('Error loading from Internet Archive Advanced Search API'));
             }
+            return resolve(results);
         });
     });
 } 
@@ -72,128 +73,68 @@ function iaGetItemMetadata(identifier) {
         ia.metadata(identifier, function(err, results) {
             if (err) {
                 console.log(err);
-                reject(new Error('Error loading from Internet Archive Metadata Api'));
-            } else {
-                resolve(results);
+                return reject(new Error('Error loading from Internet Archive Metadata Api'));
+            }
+            return resolve(results);
+        });
+    });
+}
+
+function findImdbMovieName(imdb_id) {
+    return new Promise(function(resolve, reject) {
+        args = {
+            query: {
+                imdb_id: imdb_id
+            }
+        }
+        
+        client.meta.find(args, function(err, res) {
+            if (err) { 
+                return reject(err);
+            }
+            //console.log(res);
+            if (res !== undefined && res.length > 0) {
+                var name = res[0].name;
+                console.log(name);
+                return resolve(name);
             }
         });
     });
 }
 
+function streamFindValidateArgs(args, callback) {
+    return new Promise(function (resolve, reject) {
+        var identifier = args.query.iav_id;
 
-function streamFind(args, callback) {
-    console.log("received request from stream.find", args);
-    // callback expects array of stream objects
-    var identifier = args.query.iav_id;
-
-    if (identifier === undefined) {
-        console.log("Id not supported");
-        return callback(new Error("Internal error - Id not supported"));
-    }
-
-    iaGetItemMetadata(identifier)
-        .then(function (results) {
-            var streams = [];
-
-            var mpeg4Streams = results.files.filter(function(f) { return f.name.endsWith(".mpeg4") });
-            
-            if (mpeg4Streams != null && mpeg4Streams.length > 0) {
-                streams.push({
-                    availability: 1,
-                    url: "https://archive.org/download/" + identifier + "/" + mpeg4Streams[0].name,
-                    title: mpeg4Streams[0].name,
-                    tag: ['mp4'],
-                    isFree: 1,
-                    iav_id: identifier
-                });
-            }
-
-            var mp4Streams = results.files.filter(function(f) { return f.name.endsWith(".mp4") });
-            
-            if (mp4Streams != null && mp4Streams.length > 0) {
-                streams.push({
-                    availability: 1,
-                    url: "https://archive.org/download/" + identifier + "/" + mp4Streams[0].name,
-                    title: mp4Streams[0].name,
-                    tag: ['mp4'],
-                    isFree: 1,
-                    iav_id: identifier
-                });
-            }
-
-            console.log(JSON.stringify(streams, null, 2)); 
-            callback(null, streams);
-        })
-        .catch(function (error) {
-            if (error) {
-                console.log(error);
-                return callback(error);
-            }
-        });
-    
+        if (identifier === undefined) {
+            console.log("Id not supported");
+            return reject(new Error("Internal error - Id not supported"));
+        }
+        
+        return resolve(identifier);
+    });
 }
 
-function metaFind(args, callback) {
-    console.log("received request from meta.find", args);
-    // callback expects array of meta object (primary meta feed)
-    // it passes "limit" and "skip" for pagination
-    if (args.limit === undefined || args.limit === 0) {
-        return callback(new Error("Invalid limit argument"));
-    }
-
-    var params = {
-        q: 'collection:moviesandfilms AND mediatype:movies',
-        rows: args.limit,//limit
-        page: ((args.skip === undefined ? 0 : args.skip)/args.limit) + 1,//formula: (args.skip/args.limit) + 1
-        //fl: ['identifier,title,collection,downloads,description,date'],//fields returned
-        fl: ['identifier,title,downloads'],//fields returned
-        "sort[]": "downloads desc"
-    };
-
-    iaAdvancedSearch(params)
-        .then(function (results) {
-            var response = results.response.docs.map(toMetaFindResult);
-            callback(null, response);
-        })
-        .catch(function (error) {
-            console.error(error);
-            callback(error);
-        });
+function metaFindValidateArgs(args) {
+    return new Promise(function (resolve, reject) {
+        if (args.limit === undefined || args.limit === 0) {
+            return reject(new Error("Invalid limit argument"));
+        }
+        return resolve(true);    
+    });
 }
 
-function metaGet(args, callback) {
-    console.log("received request from meta.get", args);
-    // callback expects one meta element
-    var identifier = args.query.iav_id;
+function metaGetValidateArgs(args) {
+    return new Promise(function(resolve, reject) {
+        var identifier = args.query.iav_id;
 
-    if (identifier === undefined) {
-        console.log("Id not supported");
-        return callback(new Error("Id not supported"));
-    }
-    
-    iaGetItemMetadata(identifier)
-        .then(function (results) {
-            //console.log(JSON.stringify(results, null, 2));
-            var response = {
-                id: 'iav_id:' + args.query.iav_id, // unique ID for the media, will be returned as "basic_id" in the request object later
-                name: results.metadata.title, // title of media
-                poster: loadPoster(args.query.iav_id),// getPoster(args.query.iav_id, results),    // image link               
-                genre: ['Entertainment'],
-                isFree: 1, // some aren't
-                popularity: 3831, // the larger, the more popular this item is
-                popularities: { internetarchive: 3831 }, // same as 'popularity'; use this if you want to provide different sort orders in your manifest
-                type: 'movie' // can also be "tv", "series", "channel"
-            };            
-            //console.log(JSON.stringify(response, null, 2));
-            callback(null, response);
-        })
-        .catch(function (error) {
-            if (error) {
-                console.log(error);
-                callback(error);
-            }
-        });
-    
+        if (identifier === undefined) {
+            console.log("Id not supported");
+            return reject(new Error("Id not supported"));
+        }
+        
+        return resolve(identifier);
+    });
 }
 
 function getCleanQuery(query) {        
@@ -204,70 +145,169 @@ function getCleanQuery(query) {
     }
     return cleanQuery;
 }
-/*
-function prepareQuery(query) {
+
+function metaSearchValidateArgs(args) {
     return new Promise(function(resolve, reject) {
-    });
-}*/
-
-function metaSearch(args, callback) {
-    console.log("received request from meta.search", args)
-    // callback expects array of search results with meta objects
-    // does not support pagination
-    if (args.query === undefined || args.query.length === 0) {
-        return callback(new Error("Invalid query argument"));
-    }
-
-    //check if query is url
-    if (isUrl(args.query)) {
-        console.log("Cant process url as search query, sending error to callback...");
-        return callback(new Error("Cant process url query"));
-    }
-
-    var cleanQuery = getCleanQuery(args.query);
-
-    if (cleanQuery.length === 0) {
-        return callback(new Error("Invalid query argument"));
-    }
-
-    if (args.limit === undefined || args.limit === 0) {
-        //checks limit for 0 and sends error
-        console.log("Invalid limit argument");
-        return callback(new Error("Invalid limit argument"));
-    }
-
-    console.log("clean query: " + cleanQuery);
+        if (args.query === undefined || args.query.length === 0) {
+            return reject(new Error("Invalid query argument! Undefined or zero length"));
+        }
     
-    var params = {
-        q: 'mediatype:movies AND collection:moviesandfilms AND title:"' + cleanQuery + '"',
-        rows: args.limit,
-        page: "1",
-        fl: ['identifier,title,,downloads']//fields returned
-    };
+        //check if query is url
+        if (isUrl(args.query)) {
+            console.log("Cant process url as search query, sending error to callback...");
+            return reject(new Error("Invalid query - Cant process url query - rejecting search"));
+        }
+    
+        var cleanQuery = getCleanQuery(args.query);
+    
+        if (cleanQuery.length === 0) {
+            return reject(new Error("Invalid query argument - length = 0"));
+        }
+    
+        if (args.limit === undefined || args.limit === 0) {
+            //checks limit for 0 and sends error
+            console.log("Invalid limit argument");
+            return reject(new Error("Invalid limit argument - undefined or 0"));
+        }
+    
+        console.log("clean query: " + cleanQuery);
 
-    iaAdvancedSearch(params)
-        .then(function (results) {
-            //console.log(JSON.stringify(results.response, null, 2));
-            if (results === undefined || results.response === undefined || results.response.docs === undefined) {
-                var message = "The response has undefined properties";
-                console.log(message);
-                return callback(new Error(message));
-            }
-            var response = results.response.docs.map(toMetaFindResult);
-            //console.log(JSON.stringify(response, null, 2));
-            callback(null, response);
-        })
-        .catch(function (error) {
-            console.log(error);
-            callback(error);
-        });
+        return resolve(cleanQuery);
+    });
 }
 
 var addon = new Stremio.Server({
-    "stream.find": streamFind,
-    "meta.find": metaFind,
-    "meta.get": metaGet,
-    "meta.search": metaSearch,
+    "stream.find": function (args, callback) {
+        console.log("received request from stream.find", args);
+        // callback expects array of stream objects
+        streamFindValidateArgs(args)
+            .then(function (identifier) {    
+                iaGetItemMetadata(identifier)
+                .then(function (results) {
+                    var streams = [];        
+                    var mpeg4Streams = results.files.filter(function(f) { return f.name.endsWith(".mpeg4") });
+                    
+                    if (mpeg4Streams != null && mpeg4Streams.length > 0) {
+                        streams.push({
+                            availability: 1,
+                            url: "https://archive.org/download/" + identifier + "/" + mpeg4Streams[0].name,
+                            title: mpeg4Streams[0].name,
+                            tag: ['mp4'],
+                            isFree: 1,
+                            iav_id: identifier
+                        });
+                    }
+        
+                    var mp4Streams = results.files.filter(function(f) { return f.name.endsWith(".mp4") });
+                    
+                    if (mp4Streams != null && mp4Streams.length > 0) {
+                        streams.push({
+                            availability: 1,
+                            url: "https://archive.org/download/" + identifier + "/" + mp4Streams[0].name,
+                            title: mp4Streams[0].name,
+                            tag: ['mp4'],
+                            isFree: 1,
+                            iav_id: identifier
+                        });
+                    }
+        
+                    console.log(JSON.stringify(streams, null, 2)); 
+                    return callback(null, streams);
+                })
+            })
+            .catch(function (error) {
+                console.log(error);
+                return callback(error);
+            });
+    },
+    "meta.find": function (args, callback) {
+        console.log("received request from meta.find", args);
+        // callback expects array of meta object (primary meta feed)
+        // it passes "limit" and "skip" for pagination
+        
+        metaFindValidateArgs(args)
+            .then(function() {
+                var params = {
+                    q: 'collection:moviesandfilms AND mediatype:movies',
+                    rows: args.limit,//limit
+                    page: ((args.skip === undefined ? 0 : args.skip)/args.limit) + 1,//formula: (args.skip/args.limit) + 1
+                    //fl: ['identifier,title,collection,downloads,description,date'],//fields returned
+                    fl: ['identifier,title,downloads'],//fields returned
+                    "sort[]": "downloads desc"
+                };
+    
+                iaAdvancedSearch(params)
+                .then(function (results) {
+                    var response = results.response.docs.map(toMetaFindResult);
+                    return callback(null, response);
+                });
+            })
+            .catch(function (error) {
+                console.error(error);
+                return callback(error);
+            });
+    },
+    "meta.get": function (args, callback) {
+        console.log("received request from meta.get", args);
+        // callback expects one meta element
+        
+        metaGetValidateArgs(args)
+            .then(function(identifier) {
+                iaGetItemMetadata(identifier)
+                .then(function (results) {
+                    //console.log(JSON.stringify(results, null, 2));
+                    var response = {
+                        id: 'iav_id:' + args.query.iav_id, // unique ID for the media, will be returned as "basic_id" in the request object later
+                        name: results.metadata.title, // title of media
+                        poster: getPosterUrl(args.query.iav_id),// getPoster(args.query.iav_id, results),    // image link               
+                        genre: ['Entertainment'],
+                        isFree: 1, // some aren't
+                        popularity: 3831, // the larger, the more popular this item is
+                        popularities: { internetarchive: 3831 }, // same as 'popularity'; use this if you want to provide different sort orders in your manifest
+                        type: 'movie' // can also be "tv", "series", "channel"
+                    };            
+                    //console.log(JSON.stringify(response, null, 2));
+                    return callback(null, response);
+                });
+            })
+            .catch(function (error) {
+                if (error) {
+                    console.log(error);
+                    return callback(error);
+                }
+            });
+    },
+    "meta.search": function (args, callback) {
+        console.log("received request from meta.search", args)
+        // callback expects array of search results with meta objects
+        // does not support pagination
+        metaSearchValidateArgs(args)
+            .then(function (cleanQuery) {
+                var params = {
+                    q: 'mediatype:movies AND collection:moviesandfilms AND title:"' + cleanQuery + '"',
+                    rows: args.limit,
+                    page: "1",
+                    fl: ['identifier,title,,downloads']//fields returned
+                };
+            
+                iaAdvancedSearch(params)
+                    .then(function (results) {
+                        //console.log(JSON.stringify(results.response, null, 2));
+                        if (results === undefined || results.response === undefined || results.response.docs === undefined) {
+                            var message = "The response has undefined properties";
+                            console.log(message);
+                            return callback(new Error(message));
+                        }
+                        var response = results.response.docs.map(toMetaFindResult);
+                        //console.log(JSON.stringify(response, null, 2));
+                        return  callback(null, response);
+                    });
+            })
+            .catch(function (error) {
+                console.log(error);
+                return callback(error);
+            });
+    },
 }, manifest);
 
 if (require.main===module) {
