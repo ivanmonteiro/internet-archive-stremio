@@ -7,7 +7,7 @@ process.env.STREMIO_LOGGING = true;
 // Define manifest object
 var manifest = { 
     // See https://github.com/Stremio/stremio-addons/blob/master/docs/api/manifest.md for full explanation
-    id: "org.stremio.internetarchive",//TODO: change back
+    id: "org.stremio.internetarchive",
     version: "1.0.12",
     name: "InternetArchive",
 
@@ -54,7 +54,7 @@ function toMetaFindResult(row) {
     }
 }
 
-const iaAdvancedSearch = function (params) {
+function iaAdvancedSearch(params) {
     //Promise wrapper of inernet archive advancedsearch api - used to avoid chashes using this api
     return new Promise(function(resolve, reject) {
         ia.advancedSearch(params, function(err, results) {
@@ -75,12 +75,13 @@ function iaGetItemMetadata(identifier) {
                 console.log(err);
                 return reject(new Error('Error loading from Internet Archive Metadata Api'));
             }
+            console.log(results);
             return resolve(results);
         });
     });
 }
 
-function findImdbMovieName(imdb_id) {
+function findMovieSmallMetadataByImdbId(imdb_id) {
     return new Promise(function(resolve, reject) {
         args = {
             query: {
@@ -96,11 +97,13 @@ function findImdbMovieName(imdb_id) {
             if (res !== undefined && res.length > 0) {
                 var name = res[0].name;
                 console.log(name);
-                return resolve(name);
+                var year = res[0].year;
+                return resolve({ name, year });
             }
         });
     });
 }
+
 
 function streamFindValidateArgs(args, callback) {
     return new Promise(function (resolve, reject) {
@@ -176,49 +179,88 @@ function metaSearchValidateArgs(args) {
     });
 }
 
+function findStreamForInternetArchiveId(identifier, callback) {
+    iaGetItemMetadata(identifier)
+    .then(function (results) {
+        var streams = [];        
+        var mpeg4Streams = results.files.filter(function(f) { return f.name.endsWith(".mpeg4") });
+        
+        if (mpeg4Streams != null && mpeg4Streams.length > 0) {
+            streams.push({
+                availability: 1,
+                url: "https://archive.org/download/" + identifier + "/" + mpeg4Streams[0].name,
+                title: mpeg4Streams[0].name,
+                tag: ['mp4'],
+                isFree: 1,
+                iav_id: identifier
+            });
+        }
+
+        var mp4Streams = results.files.filter(function(f) { return f.name.endsWith(".mp4") });
+        
+        if (mp4Streams != null && mp4Streams.length > 0) {
+            streams.push({
+                availability: 1,
+                url: "https://archive.org/download/" + identifier + "/" + mp4Streams[0].name,
+                title: mp4Streams[0].name,
+                tag: ['mp4'],
+                isFree: 1,
+                iav_id: identifier
+            });
+        }
+
+        console.log(JSON.stringify(streams, null, 2)); 
+        return callback(null, streams);
+    });
+}
+
 var addon = new Stremio.Server({
     "stream.find": function (args, callback) {
         console.log("received request from stream.find", args);
         // callback expects array of stream objects
-        streamFindValidateArgs(args)
-            .then(function (identifier) {    
-                iaGetItemMetadata(identifier)
-                .then(function (results) {
-                    var streams = [];        
-                    var mpeg4Streams = results.files.filter(function(f) { return f.name.endsWith(".mpeg4") });
-                    
-                    if (mpeg4Streams != null && mpeg4Streams.length > 0) {
-                        streams.push({
-                            availability: 1,
-                            url: "https://archive.org/download/" + identifier + "/" + mpeg4Streams[0].name,
-                            title: mpeg4Streams[0].name,
-                            tag: ['mp4'],
-                            isFree: 1,
-                            iav_id: identifier
-                        });
-                    }
+        if (args.query.imdb_id !== undefined && args.query.imdb_id.length > 0) {
+            //if imdb_id is present try to find source on Internet Archive
+            findMovieSmallMetadataByImdbId(args.query.imdb_id)
+                .then(function (movieSmallMeta) {
+                    var params = {
+                        q: 'collection:moviesandfilms AND mediatype:movies AND title:"' + movieSmallMeta.name + '" AND year:' + movieSmallMeta.year,
+                        rows: 1,//limit
+                        page: "1",
+                        fl: ['identifier,title'],//fields returned
+                        "sort[]": "downloads desc"
+                    };
         
-                    var mp4Streams = results.files.filter(function(f) { return f.name.endsWith(".mp4") });
-                    
-                    if (mp4Streams != null && mp4Streams.length > 0) {
-                        streams.push({
-                            availability: 1,
-                            url: "https://archive.org/download/" + identifier + "/" + mp4Streams[0].name,
-                            title: mp4Streams[0].name,
-                            tag: ['mp4'],
-                            isFree: 1,
-                            iav_id: identifier
-                        });
-                    }
-        
-                    console.log(JSON.stringify(streams, null, 2)); 
-                    return callback(null, streams);
+                    iaAdvancedSearch(params)
+                        .then(function (results) {
+                            if (results === undefined || results.response === undefined || results.response.docs == undefined || results.response.docs.length == 0){
+                                return callback(new Error("It was not possible to find this movie at internet archive"));
+                            }
+                            var foundResult = results.response.docs[0];
+                            var identifier = foundResult.identifier;
+                            //of found identifier of possible stream, now try to get metadata
+                            console.log(identifier);
+
+                            //todo: cross-check length with imdb and reject if length does not match
+                            
+                            findStreamForInternetArchiveId(identifier, callback);
+                        });  
                 })
-            })
-            .catch(function (error) {
-                console.log(error);
-                return callback(error);
-            });
+                .catch(function (error) {
+                    console.log(error);
+                    return callback(error);
+                });
+
+        } else {
+            //proceed to load source for internet archive id
+            streamFindValidateArgs(args)
+                .then(function (identifier) {
+                    findStreamForInternetArchiveId(identifier, callback);
+                })
+                .catch(function (error) {
+                    console.log(error);
+                    return callback(error);
+                });
+        }
     },
     "meta.find": function (args, callback) {
         console.log("received request from meta.find", args);
