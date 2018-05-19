@@ -75,7 +75,7 @@ function iaGetItemMetadata(identifier) {
                 console.log(err);
                 return reject(new Error('Error loading from Internet Archive Metadata Api'));
             }
-            console.log(results);
+            //console.log(results);
             return resolve(results);
         });
     });
