@@ -142,7 +142,7 @@ function metaGetValidateArgs(args) {
 
 function getCleanQuery(query) {        
     var cleanQuery = query.toLowerCase();
-    //cleanQuery = cleanQuery.replace(/\W/g, '');
+    cleanQuery = cleanQuery.replace(/\W/g, '');
     if (cleanQuery.length > 30) {        
         cleanQuery = cleanQuery.substring(0, 30);//limit query size
     }
@@ -343,7 +343,11 @@ var addon = new Stremio.Server({
                         var response = results.response.docs.map(toMetaFindResult);
                         //console.log(JSON.stringify(response, null, 2));
                         return  callback(null, response);
-                    });
+                    })
+                    .catch(function (error) {
+                        console.log(error);
+                        return callback(error);
+                    });;
             })
             .catch(function (error) {
                 console.log(error);

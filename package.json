@@ -9,7 +9,7 @@
   "author": "ivanmonteiroc@gmail.com",
   "license": "MIT",
   "dependencies": {
-    "internet-archive": "^1.0.4",
+    "internet-archive": "https://github.com/ivanmonteiro/internet-archive.git",
     "is-url": "^1.2.4",
     "stremio-addons": "latest"
   }
