@@ -142,7 +142,7 @@ function metaGetValidateArgs(args) {
 
 function getCleanQuery(query) {        
     var cleanQuery = query.toLowerCase();
-    cleanQuery = cleanQuery.replace(/\W/g, '');
+    cleanQuery = cleanQuery.replace(/\W /g, '');
     if (cleanQuery.length > 30) {        
         cleanQuery = cleanQuery.substring(0, 30);//limit query size
     }
