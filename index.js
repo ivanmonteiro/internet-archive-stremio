@@ -11,8 +11,7 @@ var manifest = {
     version: "1.0.12",
     name: "InternetArchive",
 
-    description: "Stremio addon for Internet Archive videos at https://archive.org",
-    webDescription: "<p>Stremio addon for Internet Archive videos at <a href='https://archive.org'>archive.org</a></p>",
+    description: "Provides public domain movies found at Internet Archive: https://archive.org",
     icon: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
     logo: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
     background: "https://ivancantalice.files.wordpress.com/2018/05/camera-wallpaper.jpeg", 
@@ -44,12 +43,15 @@ function toMetaFindResult(row) {
         id: 'iav_id:' + row.identifier, // unique ID for the media, will be returned as "basic_id" in the request object later
         name: row.title, // title of media
         poster: getPosterUrl(row.identifier), // image link
+        background: getPosterUrl(row.identifier),
         //posterShape: 'regular', // can also be 'landscape' or 'square'
         //banner: 'http://thetvdb.com/banners/graphical/78804-g44.jpg', // image link
         genre: ['Entertainment'],
         isFree: 1, // some aren't
         popularity: row.downloads, // the larger, the more popular this item is
         popularities: { internetarchive: row.downloads }, // same as 'popularity'; use this if you want to provide different sort orders in your manifest
+        year: row.year,
+        description: row.description,
         type: 'movie' // can also be "tv", "series", "channel"
     }
 }
@@ -274,7 +276,7 @@ var addon = new Stremio.Server({
                     rows: args.limit,//limit
                     page: ((args.skip === undefined ? 0 : args.skip)/args.limit) + 1,//formula: (args.skip/args.limit) + 1
                     //fl: ['identifier,title,collection,downloads,description,date'],//fields returned
-                    fl: ['identifier,title,downloads'],//fields returned
+                    fl: ['identifier,title,downloads,description,year'],//fields returned
                     "sort[]": "downloads desc"
                 };
     
@@ -302,10 +304,13 @@ var addon = new Stremio.Server({
                         id: 'iav_id:' + args.query.iav_id, // unique ID for the media, will be returned as "basic_id" in the request object later
                         name: results.metadata.title, // title of media
                         poster: getPosterUrl(args.query.iav_id),// getPoster(args.query.iav_id, results),    // image link               
+                        background: getPosterUrl(args.query.iav_id),
                         genre: ['Entertainment'],
                         isFree: 1, // some aren't
                         popularity: 3831, // the larger, the more popular this item is
                         popularities: { internetarchive: 3831 }, // same as 'popularity'; use this if you want to provide different sort orders in your manifest
+                        year: results.metadata.year,
+                        description: results.metadata.description,
                         type: 'movie' // can also be "tv", "series", "channel"
                     };            
                     //console.log(JSON.stringify(response, null, 2));
@@ -329,7 +334,7 @@ var addon = new Stremio.Server({
                     q: 'mediatype:movies AND collection:moviesandfilms AND title:"' + cleanQuery + '"',
                     rows: args.limit,
                     page: "1",
-                    fl: ['identifier,title,,downloads']//fields returned
+                    fl: ['identifier,title,downloads,description,year']//fields returned
                 };
             
                 iaAdvancedSearch(params)

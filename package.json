@@ -1,7 +1,7 @@
 {
   "name": "internetarchivevideos",
   "version": "1.0.0",
-  "description": "Stremio addon for videos from Internet Archive - http://archive.org",
+  "description": "Stremio addon for videos from Internet Archive: http://archive.org",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
