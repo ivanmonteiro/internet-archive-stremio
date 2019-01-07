@@ -25,7 +25,7 @@ var manifest = {
     // Adding a sort would add a tab in Discover and a lane in the Board for this add-on
     sorts: [ {prop: "popularities.internetarchive", name: "InternetArchive", types: ["movie"]}],
 
-    endpoint: "https://internetarchivestremio.herokuapp.com/stremioget/stremio/v1",    
+    endpoint: "https://internetarchivestremio.ubuntu-unificado.ml/stremioget/stremio/v1",    
     isFree : true,
     contactEmail: "ivanmonteiroc@gmail.com",
     email: "ivanmonteiroc@gmail.com"
