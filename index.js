@@ -220,7 +220,7 @@ var addon = new Stremio.Server({
     "stream.find": function (args, callback) {
         console.log("received request from stream.find", args);
         // callback expects array of stream objects
-        if (args.query.imdb_id !== undefined && args.query.imdb_id.length > 0) {
+        if (args !== null && args.query !== null && args.query.imdb_id !== null && args.query.imdb_id.length > 0) {
             //if imdb_id is present try to find source on Internet Archive
             findMovieSmallMetadataByImdbId(args.query.imdb_id)
                 .then(function (movieSmallMeta) {
