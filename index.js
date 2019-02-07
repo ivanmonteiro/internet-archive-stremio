@@ -83,15 +83,15 @@ function iaGetItemMetadata(identifier) {
     });
 }
 
-function findMovieSmallMetadataByImdbId(imdb_id) {
+function findMovieSmallMetadataByImdbId(args) {
     return new Promise(function(resolve, reject) {
-        args = {
+        args_iac = {
             query: {
-                imdb_id: imdb_id
+                imdb_id: args.query.imdb_id
             }
         }
         
-        client.meta.find(args, function(err, res) {
+        client.meta.find(args_iac, function(err, res) {
             if (err) { 
                 return reject(err);
             }
@@ -220,9 +220,9 @@ var addon = new Stremio.Server({
     "stream.find": function (args, callback) {
         console.log("received request from stream.find", args);
         // callback expects array of stream objects
-        if (args !== null && args.query !== null && args.query.imdb_id !== null && args.query.imdb_id.length > 0) {
+        if (args !== undefined && args.query !== undefined && args.query.imdb_id !== undefined && args.query.imdb_id.length > 0) {
             //if imdb_id is present try to find source on Internet Archive
-            findMovieSmallMetadataByImdbId(args.query.imdb_id)
+            findMovieSmallMetadataByImdbId(args)
                 .then(function (movieSmallMeta) {
                     var params = {
                         q: 'collection:moviesandfilms AND mediatype:movies AND title:"' + movieSmallMeta.name + '" AND year:' + movieSmallMeta.year,
