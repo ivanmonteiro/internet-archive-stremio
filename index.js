@@ -11,7 +11,7 @@ var manifest = {
     version: "1.0.12",
     name: "InternetArchive",
 
-    description: "Provides public domain movies found at Internet Archive: https://archive.org",
+    description: "Provides public domain movies found at Internet Archive: https://archive.org ",
     icon: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
     logo: "https://ivancantalice.files.wordpress.com/2018/05/internetarchivelogo256x256.png",
     background: "https://ivancantalice.files.wordpress.com/2018/05/camera-wallpaper.jpeg", 
